@@ -4,30 +4,42 @@ services:
     image: 'nextcloud/all-in-one:latest'
     restart: always
     container_name: nextcloud-aio-mastercontainer
+    init: true
     volumes:
       - 'nextcloud_aio_mastercontainer:/mnt/docker-aio-config'
       - '/var/run/docker.sock:/var/run/docker.sock:ro'
-      - '/opt/nextcloud-aio/data:/mnt/ncdata:rw'
+      # - '/opt/nextcloud-aio/data:/mnt/ncdata:rw'
     ports:
-      - '11000:8080'
+      - '11000:80'
+      - '11001:8080'
+      - '10999:8443'
     environment:
-      - APACHE_PORT=${APACHE_PORT:-11000}
+      - APACHE_PORT=${APACHE_PORT:-11002}
       - APACHE_IP_BINDING=${APACHE_IP_BINDING:-0.0.0.0}
-      - SKIP_DOMAIN_VALIDATION=${SKIP_DOMAIN_VALIDATION:-true}
-      - NEXTCLOUD_DATADIR=${NEXTCLOUD_DATADIR:-/mnt/ncdata}
+      - POSTGRES_DB=${POSTGRES_DB:-nextcloud}
+      - POSTGRES_USER=${POSTGRES_USER:-nextcloud}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-EW#5tmg$WlVm}
+      - SKIP_DOMAIN_VALIDATION=true
       - AIO_TOKEN=${AIO_TOKEN}
-      - COOLIFY_CONTAINER_NAME=nextcloud-aio-mastercontainer
+      - NEXTCLOUD_MEMORY_LIMIT=${NEXTCLOUD_MEMORY_LIMIT:-1024M}
+      # - NEXTCLOUD_DATADIR=${NEXTCLOUD_DATADIR:-/mnt/ncdata}
+      # - TALK_PORT=3478
     networks:
-      - coolify
-    labels:
-      - coolify.managed=true
-      - traefik.enable=true
-      - traefik.http.routers.nextcloud-aio.rule=Host(`nextcloud.morain.fr`)
-      - traefik.http.routers.nextcloud-aio.tls.certresolver=letsencrypt
-      - traefik.http.services.nextcloud-aio.loadbalancer.server.port=8080
+      - nextcloud-aio
+
+  cloudflare-tunnel:
+    image: 'cloudflare/cloudflared:latest'
+    container_name: nextcloud-aio-cloudflare
+    networks:
+      - nextcloud-aio
+    restart: 'no'
+    command: 'tunnel --no-autoupdate run'
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN}
+      
 volumes:
   nextcloud_aio_mastercontainer:
-    name: nextcloud_aio_mastercontainer
+    external: true
 networks:
-  coolify:
+  nextcloud-aio:
     external: true
